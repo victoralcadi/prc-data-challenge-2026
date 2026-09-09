@@ -7,6 +7,10 @@ name = "prc2026"
 version = "0.1.0"
 description = "Taxi-out time prediction for the PRC Data Challenge 2026"
 requires-python = ">=3.10"
+# GPLv3 is mandated by the challenge prize-eligibility rules
+classifiers = [
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+]
 dependencies = [
     "pandas>=2.1",
     "pyarrow>=15.0",

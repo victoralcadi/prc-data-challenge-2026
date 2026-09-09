@@ -54,6 +54,11 @@ models/                trained artefacts (git-ignored)
 submissions/           generated parquet submissions (git-ignored)
 ```
 
+## Timeline
+
+The competition runs 1 September to **11 October 2026, 23:59:59 CET**. Ranking uses RMSE
+over January and July 2026 departures, best submission per team, 5 per day.
+
 ## Setup
 
 ```bash
@@ -64,9 +69,12 @@ cp .env.example .env    # then fill in your team credentials
 
 ### Credentials
 
-Registration gives you a team name, team id, `bucket_access_key` and
-`bucket_access_secret`; the keys are generated from your OpenSky Network account
-(Account → Access Keys). Put them in `.env`:
+Access is **not** self-service. You request team creation on the challenge site, the PRC
+team approves it, you reply to the verification email, and they then send the access keys
+to the datasets/buckets. The data page also shows how to generate access keys on your OSN
+account, so expect to need both an OSN account and an approved team.
+
+Once you have them, put them in `.env`:
 
 ```
 PRC_ACCESS_KEY=...
@@ -134,8 +142,26 @@ prc2026 upload --version 1    # copies it to your submission bucket
 `train` prints validation RMSE in seconds. The naive baseline (per airport median) is
 reported alongside so you can tell whether a change actually bought anything.
 
+## Prize eligibility obligations
+
+From the [eligibility page](https://prc-data-challenge-2026.netlify.app/eligibility.html),
+a winning solution only qualifies if:
+
+- the source is **public on GitHub under GNU GPLv3** (the challenge account then forks it)
+- every external dataset used is openly accessible, openly licensed, and documented
+- the documentation is enough to reproduce the results
+- the solution is original, not a rewrap of someone else's implementation
+
+So this repo is GPLv3 (`LICENSE`) and must be flipped to public before the deadline:
+`gh repo edit --visibility public`. Any external data added later belongs in a documented
+list here, with its licence.
+
 ## Notes
 
+- The bucket name is not stated anywhere in the 2026 docs. `PRC_DATA_BUCKET` defaults to
+  `competition-data`, inherited from the 2024 edition — confirm with
+  `prc2026 download --list`, which lists whatever your keys can actually see, and correct
+  `.env` if it differs.
 - The data page opens by saying **11** airports and then states the 4,167,797 total is
   across the **10** airports in its Table 1, which does list 10. The code follows the
   table. If an eleventh airport shows up in the data, `airport` in `AIRPORT_TZ` will miss
