@@ -119,6 +119,29 @@ TAXI_MIN_SEC = 60
 TAXI_MAX_SEC = 3 * 3600
 
 
+def mask_secret(value: str) -> str:
+    """Describe a credential without revealing it, for safe diagnostics output."""
+    if not value:
+        return "(not set)"
+    if len(value) <= 4:
+        return f"(set, {len(value)} chars)"
+    return f"{value[:3]}...{value[-1]} ({len(value)} chars)"
+
+
+def settings() -> list[tuple[str, str, bool]]:
+    """(name, displayable value, required) for every setting, secrets masked."""
+    return [
+        ("PRC_ACCESS_KEY", mask_secret(ACCESS_KEY), True),
+        ("PRC_SECRET_KEY", mask_secret(SECRET_KEY), True),
+        ("PRC_TEAM_NAME", TEAM_NAME or "(not set)", True),
+        ("PRC_TEAM_ID", TEAM_ID or "(not set)", False),
+        ("PRC_S3_ENDPOINT", S3_ENDPOINT, True),
+        ("PRC_DATA_BUCKET", DATA_BUCKET, True),
+        ("PRC_SUBMISSION_BUCKET", SUBMISSION_BUCKET or "(not set)", False),
+        ("PRC_DATA_DIR", str(DATA_DIR), False),
+    ]
+
+
 def ensure_dirs() -> None:
     for path in (RAW_DIR, PROCESSED_DIR, MODEL_DIR, SUBMISSION_DIR):
         path.mkdir(parents=True, exist_ok=True)

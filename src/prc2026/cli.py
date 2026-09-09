@@ -30,6 +30,45 @@ def cmd_download(args: argparse.Namespace) -> None:
     )
 
 
+def cmd_doctor(args: argparse.Namespace) -> None:
+    """Check .env is complete and that the credentials actually open the buckets."""
+    env_path = config.PROJECT_ROOT / ".env"
+    print(f".env: {'found' if env_path.exists() else 'MISSING - copy .env.example to .env'}")
+
+    missing = []
+    print("\nsettings (secrets masked)")
+    for name, shown, required in config.settings():
+        flag = "" if shown != "(not set)" else ("  <-- required" if required else "  (optional)")
+        print(f"  {name:<24} {shown}{flag}")
+        if required and shown == "(not set)":
+            missing.append(name)
+    if missing:
+        raise SystemExit(f"\nfill in {', '.join(missing)} in {env_path}, then rerun")
+
+    print(f"\nconnecting to {config.S3_ENDPOINT} ...")
+    try:
+        buckets = io_s3.list_buckets()
+    except Exception as error:  # noqa: BLE001 - surface any auth/network failure verbatim
+        raise SystemExit(f"  failed: {type(error).__name__}: {error}") from error
+
+    print(f"  buckets visible: {', '.join(buckets) or '(none)'}")
+    if config.DATA_BUCKET not in buckets:
+        print(
+            f"  note: PRC_DATA_BUCKET='{config.DATA_BUCKET}' is not in that list. "
+            "Set it to whichever bucket above holds the training files."
+        )
+    if config.SUBMISSION_BUCKET and config.SUBMISSION_BUCKET not in buckets:
+        print(
+            f"  note: PRC_SUBMISSION_BUCKET='{config.SUBMISSION_BUCKET}' is not listed. "
+            "Submission buckets are often write-only, so this may still be correct."
+        )
+    try:
+        objects = io_s3.list_objects()
+        print(f"  {config.DATA_BUCKET} holds {len(objects)} object(s)")
+    except Exception as error:  # noqa: BLE001
+        print(f"  could not list {config.DATA_BUCKET}: {type(error).__name__}: {error}")
+
+
 def cmd_status(args: argparse.Namespace) -> None:
     status = manifest.local_status()
     print(f"\nlocal: {config.RAW_DIR}")
@@ -199,6 +238,9 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--prefix", default="")
     p.add_argument("--overwrite", action="store_true")
     p.set_defaults(func=cmd_download)
+
+    p = sub.add_parser("doctor", help="check .env and test the bucket connection")
+    p.set_defaults(func=cmd_doctor)
 
     p = sub.add_parser("status", help="check the expected files against disk (and the bucket)")
     p.add_argument("--remote", action="store_true", help="also list the bucket contents")

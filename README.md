@@ -76,7 +76,8 @@ team approves it, you reply to the verification email, and they then send the ac
 to the datasets/buckets. The data page also shows how to generate access keys on your OSN
 account, so expect to need both an OSN account and an approved team.
 
-Once you have them, put them in `.env`:
+Once you have them, put them in `.env` and check with `prc2026 doctor`, which masks the
+keys, names anything still missing, and tries an actual bucket listing:
 
 ```
 PRC_ACCESS_KEY=...
@@ -134,6 +135,7 @@ mc cp --recursive dc26/competition-data/ data/raw/
 ## Workflow
 
 ```bash
+prc2026 doctor                # is .env complete and do the keys open the buckets?
 prc2026 status                # are all 14 files there, at roughly the right size?
 prc2026 audit                 # column availability + target sanity, train vs ranking
 prc2026 train                 # month-holdout validation (Jan + Jul), then full refit
