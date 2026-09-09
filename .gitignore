@@ -1,0 +1,31 @@
+# data & artefacts
+data/
+models/
+submissions/
+*.parquet
+*.csv
+*.pkl
+*.joblib
+
+# secrets
+.env
+*.pem
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+.ipynb_checkpoints/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# editors / os
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
