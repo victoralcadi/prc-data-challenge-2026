@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import config, data, io_s3, manifest, model
+from . import config, data, io_s3, leaderboard, manifest, model, submission
 
 
 def _months(value: str | None) -> list[int] | None:
@@ -104,30 +104,81 @@ def cmd_train(args: argparse.Namespace) -> None:
     print(f"\nsaved {path}")
 
 
+def _finalise(frame, template, args) -> None:
+    """Validate, write, report, and optionally upload a submission."""
+    problems = submission.validate(frame, template)
+    if problems:
+        print("submission would be REJECTED:")
+        for problem in problems:
+            print(f"  - {problem}")
+        raise SystemExit(1)
+
+    if len(frame) != config.EXPECTED_SUBMISSION_ROWS:
+        print(
+            f"note: {len(frame):,} rows, but the leaderboard reports "
+            f"{config.EXPECTED_SUBMISSION_ROWS:,} scored rows"
+        )
+
+    path = submission.write(frame, args.version, args.name)
+    print(f"wrote {path}\n  {submission.summarise(frame)}")
+    if not config.TEAM_NAME:
+        print("  note: PRC_TEAM_NAME is empty, so the file is named 'team_v<n>.parquet'")
+    if getattr(args, "upload", False):
+        print("uploaded to", io_s3.upload(path, args.bucket))
+        print("remember: 5 submissions per day, 1GB per bucket")
+    else:
+        print(f"to submit: prc2026 upload --version {args.version}")
+
+
 def cmd_predict(args: argparse.Namespace) -> None:
     config.ensure_dirs()
     artefact = model.Artefact.load(Path(args.model) if args.model else None)
-    ranking = data.load_ranking()
-    preds = model.predict(artefact, ranking)
-
+    preds = model.predict(artefact, data.load_ranking())
     template = data.load_submitting()
-    merged = template[[config.ID]].merge(preds, on=config.ID, how="left")
-    missing = int(merged[config.TARGET].isna().sum())
-    if missing:
-        fill = float(preds[config.TARGET].median())
-        print(f"warning: {missing} rows had no prediction, filled with median {fill:.0f}s")
-        merged[config.TARGET] = merged[config.TARGET].fillna(fill)
-    if len(merged) != len(template):
-        raise SystemExit("row count changed against the template; submission would be rejected")
 
-    name = args.name or f"{config.TEAM_NAME or 'team'}_v{args.version}.parquet"
-    out = config.SUBMISSION_DIR / name
-    merged.to_parquet(out, index=False)
-    print(
-        f"wrote {out} ({len(merged):,} rows)\n"
-        f"  predicted taxi-out: mean {merged[config.TARGET].mean():.0f}s "
-        f"median {merged[config.TARGET].median():.0f}s"
-    )
+    frame = submission.fill(template, preds)
+    unpredicted = int(frame[config.TARGET].isna().sum())
+    if unpredicted:
+        fallback = float(preds[config.TARGET].median())
+        print(f"warning: {unpredicted:,} rows had no prediction, filled with {fallback:.0f}s")
+        frame[config.TARGET] = frame[config.TARGET].fillna(fallback)
+    _finalise(frame, template, args)
+
+
+def cmd_dummy(args: argparse.Namespace) -> None:
+    """A constant-value submission: proves the pipe works before a model exists."""
+    config.ensure_dirs()
+    template = data.load_submitting()
+
+    value = args.value
+    if args.from_training:
+        train = data.load_training()
+        labelled = data.departures(train, labelled=True)
+        value = float(labelled[config.TARGET].median())
+        print(f"median taxi-out over {len(labelled):,} labelled departures: {value:.0f}s")
+
+    print(f"filling {len(template):,} template rows with {value:.0f}s")
+    _finalise(submission.fill(template, value), template, args)
+
+
+def cmd_leaderboard(args: argparse.Namespace) -> None:
+    items = leaderboard.fetch(pages=args.pages)
+    if not items:
+        raise SystemExit("leaderboard returned nothing")
+
+    best = leaderboard.best_per_team(items)
+    print(f"best per team (RMSE seconds), {len(items)} submissions fetched\n")
+    print(best.head(args.top).to_string())
+
+    team = args.team or config.TEAM_NAME
+    if team:
+        mine = leaderboard.table(items)
+        mine = mine[mine["team"].eq(team)]
+        if mine.empty:
+            print(f"\nno scored submission for '{team}' in the pages fetched")
+        else:
+            print(f"\nsubmissions for {team}\n")
+            print(mine.to_string(index=False))
 
 
 def cmd_upload(args: argparse.Namespace) -> None:
@@ -168,11 +219,30 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--out", default=None)
     p.set_defaults(func=cmd_train)
 
+    p = sub.add_parser("dummy", help="constant-value submission to test the plumbing")
+    p.add_argument("--version", type=int, required=True)
+    p.add_argument("--value", type=float, default=900.0, help="taxi-out seconds for every row")
+    p.add_argument(
+        "--from-training", action="store_true", help="use the median of the training labels"
+    )
+    p.add_argument("--upload", action="store_true", help="upload straight after writing")
+    p.add_argument("--bucket", default=None)
+    p.add_argument("--name", default=None)
+    p.set_defaults(func=cmd_dummy)
+
     p = sub.add_parser("predict", help="score ranking.parquet into a submission file")
     p.add_argument("--version", type=int, required=True)
     p.add_argument("--model", default=None)
+    p.add_argument("--upload", action="store_true", help="upload straight after writing")
+    p.add_argument("--bucket", default=None)
     p.add_argument("--name", default=None)
     p.set_defaults(func=cmd_predict)
+
+    p = sub.add_parser("leaderboard", help="read the public leaderboard")
+    p.add_argument("--pages", type=int, default=1, help="pages of results to follow")
+    p.add_argument("--top", type=int, default=15)
+    p.add_argument("--team", default=None, help="defaults to PRC_TEAM_NAME")
+    p.set_defaults(func=cmd_leaderboard)
 
     p = sub.add_parser("upload", help="push a submission to your team bucket")
     p.add_argument("--version", type=int, required=True)

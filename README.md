@@ -47,7 +47,9 @@ src/prc2026/
   data.py       parquet loading, dtype normalisation, train/rank splits
   features.py   time, congestion/queue, and group-statistic features
   model.py      LightGBM training, month-holdout validation, prediction
-  cli.py        `prc2026 download|status|audit|train|predict|upload`
+  submission.py template filling and pre-upload validation
+  leaderboard.py public standings via the competition API
+  cli.py        `prc2026 download|status|audit|train|dummy|predict|upload|leaderboard`
 scripts/quicklook.py   one-screen sanity check of a raw parquet file
 data/raw/              downloaded parquet (git-ignored)
 models/                trained artefacts (git-ignored)
@@ -137,7 +139,33 @@ prc2026 audit                 # column availability + target sanity, train vs ra
 prc2026 train                 # month-holdout validation (Jan + Jul), then full refit
 prc2026 predict --version 1   # writes submissions/<team>_v1.parquet
 prc2026 upload --version 1    # copies it to your submission bucket
+prc2026 leaderboard           # public standings, and whether your file scored
 ```
+
+### Dummy submission first
+
+Before spending effort on a model, prove the pipe works. `dummy` fills every row of the
+template with one constant, validates it against the template, and optionally uploads:
+
+```bash
+prc2026 dummy --version 0                     # write it, inspect it
+prc2026 dummy --version 0 --upload            # write and submit
+prc2026 dummy --version 0 --from-training     # constant = median of the training labels
+```
+
+It will score badly, and that is the point: a number on the leaderboard means the naming,
+the bucket, the row matching and the ranking job all work. `TEAM_NAME` must match the name
+assigned at registration exactly, since the file must be `<team-name>_v<n>.parquet`.
+
+Submissions are validated locally before upload and the command aborts on any of the
+rejection reasons the ranking script uses: row count, unknown or missing `MVT_ID_mvt`,
+duplicates, row order, nulls. With 5 submissions per day, a rejected upload is expensive.
+
+### Where the bar is
+
+As of 9 September 2026 the leaderboard's best RMSE was ~246s, with the top ten inside
+~275s, over 344,841 scored departures. A tight field: about 29 seconds separates first
+from tenth, so the fight is over the last few percent.
 
 `train` prints validation RMSE in seconds. The naive baseline (per airport median) is
 reported alongside so you can tell whether a change actually bought anything.

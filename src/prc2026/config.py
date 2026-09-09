@@ -49,6 +49,13 @@ TRAINING_YEAR = 2025
 # against it.
 EXPECTED_MOVEMENTS = 4_167_797
 
+# Competition on datacomp.opensky-network.org, used for the public leaderboard API.
+COMPETITION_ID = "bb3693e1-26bc-4a9e-8619-4fe78b4eab0c"
+# Rows the ranking script actually scores, observed from the leaderboard's `usedPairs`
+# rather than published anywhere. A submitting.parquet of a different length is a
+# reason to look twice before uploading.
+EXPECTED_SUBMISSION_ROWS = 344_841
+
 
 def training_file(month: int, year: int = TRAINING_YEAR) -> str:
     """`training_2025-01-01_2025-02-01.parquet` style name for a given month."""
