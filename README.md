@@ -38,12 +38,13 @@ Congestion features here are therefore anchored on **takeoff time**, not push-ba
 
 ```
 src/prc2026/
-  config.py     paths + env-driven settings
+  config.py     paths, column names, expected file list, env-driven settings
+  manifest.py   the 14 objects the bucket should hold; local vs remote diff
   io_s3.py      MinIO/S3 access to the OSN buckets (list/download/upload)
   data.py       parquet loading, dtype normalisation, train/rank splits
   features.py   time, congestion/queue, and group-statistic features
   model.py      LightGBM training, month-holdout validation, prediction
-  cli.py        `prc2026 download|audit|train|predict|upload`
+  cli.py        `prc2026 download|status|audit|train|predict|upload`
 scripts/quicklook.py   one-screen sanity check of a raw parquet file
 data/raw/              downloaded parquet (git-ignored)
 models/                trained artefacts (git-ignored)
@@ -73,11 +74,40 @@ PRC_SUBMISSION_BUCKET=team_something
 
 ### Get the data
 
+Expected bucket layout — 14 parquet objects, no CSVs:
+
+```
+competition-data/
+├── training_2025-01-01_2025-02-01.parquet   (21M)
+├── training_2025-02-01_2025-03-01.parquet   (19M)
+├── training_2025-03-01_2025-04-01.parquet   (22M)
+├── training_2025-04-01_2025-05-01.parquet   (23M)
+├── training_2025-05-01_2025-06-01.parquet   (25M)
+├── training_2025-06-01_2025-07-01.parquet   (24M)
+├── training_2025-07-01_2025-08-01.parquet   (25M)
+├── training_2025-08-01_2025-09-01.parquet   (25M)
+├── training_2025-09-01_2025-10-01.parquet   (24M)
+├── training_2025-10-01_2025-11-01.parquet   (25M)
+├── training_2025-11-01_2025-12-01.parquet   (22M)
+├── training_2025-12-01_2026-01-01.parquet   (22M)
+├── ranking.parquet     (27M)  Jan + Jul 2026, departure block/taxi times blanked
+└── submitting.parquet  (1.1M) template: MVT_ID_mvt + empty TAXITIME_SEC_mvt
+```
+
+Each file spans `[start, end)`, so `training_2025-12-01_2026-01-01.parquet` is December.
+`manifest.py` holds this list; `prc2026 status` diffs it against what you actually have.
+
+> Not to be confused with the **2024** challenge bucket, which held daily trajectory
+> files (`2022-01-01.parquet`, …) plus `challenge_set.csv`, `submission_set.csv` and
+> `final_submission_set.csv`. That challenge predicted take-off weight; only its MinIO
+> setup instructions carry over.
+
 Python (no extra tooling):
 
 ```bash
 prc2026 download --list                  # show buckets/objects you can see
 prc2026 download                         # pull competition data into data/raw/
+prc2026 status --remote                  # expected vs local vs bucket
 ```
 
 Or with the [MinIO client](https://min.io/docs/minio/linux/reference/minio-mc.html):
@@ -91,6 +121,7 @@ mc cp --recursive dc26/competition-data/ data/raw/
 ## Workflow
 
 ```bash
+prc2026 status                # are all 14 files there, at roughly the right size?
 prc2026 audit                 # column availability + target sanity, train vs ranking
 prc2026 train                 # month-holdout validation (Jan + Jul), then full refit
 prc2026 predict --version 1   # writes submissions/<team>_v1.parquet

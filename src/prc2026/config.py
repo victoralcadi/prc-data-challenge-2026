@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from datetime import date
 from pathlib import Path
 
 try:  # optional, keeps the package importable without extras
@@ -31,6 +32,32 @@ TEAM_ID = os.getenv("PRC_TEAM_ID", "")
 RANKING_FILE = "ranking.parquet"
 SUBMITTING_FILE = "submitting.parquet"
 TRAINING_GLOB = "training_*.parquet"
+
+# The bucket holds one movements file per month of 2025, plus the ranking and
+# submission-template files. Sizes are the published ones, used only as a rough
+# integrity hint (see manifest.py).
+TRAINING_SIZES_MB = {
+    1: 21, 2: 19, 3: 22, 4: 23, 5: 25, 6: 24,
+    7: 25, 8: 25, 9: 24, 10: 25, 11: 22, 12: 22,
+}
+RANKING_SIZE_MB = 27
+SUBMITTING_SIZE_MB = 1.1
+TRAINING_YEAR = 2025
+
+
+def training_file(month: int, year: int = TRAINING_YEAR) -> str:
+    """`training_2025-01-01_2025-02-01.parquet` style name for a given month."""
+    start = date(year, month, 1)
+    end = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
+    return f"training_{start:%Y-%m-%d}_{end:%Y-%m-%d}.parquet"
+
+
+def expected_objects() -> dict[str, float]:
+    """Every object the competition bucket should contain, mapped to its size in MB."""
+    objects = {training_file(m): float(mb) for m, mb in TRAINING_SIZES_MB.items()}
+    objects[RANKING_FILE] = float(RANKING_SIZE_MB)
+    objects[SUBMITTING_FILE] = float(SUBMITTING_SIZE_MB)
+    return objects
 
 ID = "MVT_ID_mvt"
 TARGET = "TAXITIME_SEC_mvt"

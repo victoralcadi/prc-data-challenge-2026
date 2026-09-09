@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import config, data, io_s3, model
+from . import config, data, io_s3, manifest, model
 
 
 def _months(value: str | None) -> list[int] | None:
@@ -25,6 +25,27 @@ def cmd_download(args: argparse.Namespace) -> None:
         return
     files = io_s3.download(args.bucket, args.prefix, overwrite=args.overwrite)
     print(f"{len(files)} file(s) in {config.RAW_DIR}")
+    cmd_status(argparse.Namespace(remote=False, bucket=args.bucket, prefix=args.prefix))
+
+
+def cmd_status(args: argparse.Namespace) -> None:
+    status = manifest.local_status()
+    print(f"\nlocal: {config.RAW_DIR}")
+    print(status.to_string(index=False))
+    print(manifest.describe(status))
+    incomplete = status[status["state"].ne("ok")]["object"].tolist()
+    if len(incomplete) == len(status):
+        print("nothing downloaded yet: run `prc2026 download`")
+    elif incomplete:
+        print("run `prc2026 download` to fetch:", ", ".join(incomplete))
+
+    if args.remote:
+        remote = manifest.remote_status(args.bucket, args.prefix)
+        print(f"\nbucket: {args.bucket or config.DATA_BUCKET}")
+        print(remote.to_string(index=False))
+        unexpected = remote[remote["expected_mb"].isna()]["object"].tolist()
+        if unexpected:
+            print("not in the documented layout (new or renamed?):", ", ".join(unexpected))
 
 
 def cmd_audit(args: argparse.Namespace) -> None:
@@ -118,6 +139,12 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--prefix", default="")
     p.add_argument("--overwrite", action="store_true")
     p.set_defaults(func=cmd_download)
+
+    p = sub.add_parser("status", help="check the expected files against disk (and the bucket)")
+    p.add_argument("--remote", action="store_true", help="also list the bucket contents")
+    p.add_argument("--bucket", default=None)
+    p.add_argument("--prefix", default="")
+    p.set_defaults(func=cmd_status)
 
     p = sub.add_parser("audit", help="column availability and blanking check")
     p.add_argument("--files", type=int, default=1, help="how many training files to read")
