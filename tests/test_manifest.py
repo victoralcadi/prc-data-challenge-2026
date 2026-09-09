@@ -35,6 +35,31 @@ def test_local_status_shape() -> None:
     assert status["state"].isin({"ok", "missing", "size mismatch"}).all()
 
 
+def test_row_counts_and_total_check() -> None:
+    """Row counting works off parquet metadata and flags a partial download."""
+    import tempfile
+
+    import pandas as pd
+
+    original = config.RAW_DIR
+    with tempfile.TemporaryDirectory() as tmp:
+        config.RAW_DIR = Path(tmp)
+        try:
+            frame = pd.DataFrame({config.ID: range(10), config.PHASE: ["DEP", "ARR"] * 5})
+            frame.to_parquet(config.RAW_DIR / config.training_file(1), index=False)
+            frame.to_parquet(config.RAW_DIR / config.training_file(2), index=False)
+
+            counts = manifest.row_counts()
+            assert len(counts) == 2
+            assert counts["rows"].sum() == 20
+            assert counts["dep"].sum() == 10 and counts["arr"].sum() == 10
+            # two of twelve files: the total check must say so rather than compare
+            assert "2/12 training files" in manifest.check_movement_total(counts)
+            assert "nothing to count" in manifest.check_movement_total(counts.iloc[:0])
+        finally:
+            config.RAW_DIR = original
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_") and callable(fn):

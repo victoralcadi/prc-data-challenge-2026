@@ -25,7 +25,9 @@ def cmd_download(args: argparse.Namespace) -> None:
         return
     files = io_s3.download(args.bucket, args.prefix, overwrite=args.overwrite)
     print(f"{len(files)} file(s) in {config.RAW_DIR}")
-    cmd_status(argparse.Namespace(remote=False, bucket=args.bucket, prefix=args.prefix))
+    cmd_status(
+        argparse.Namespace(remote=False, count=False, bucket=args.bucket, prefix=args.prefix)
+    )
 
 
 def cmd_status(args: argparse.Namespace) -> None:
@@ -38,6 +40,13 @@ def cmd_status(args: argparse.Namespace) -> None:
         print("nothing downloaded yet: run `prc2026 download`")
     elif incomplete:
         print("run `prc2026 download` to fetch:", ", ".join(incomplete))
+
+    if args.count:
+        counts = manifest.row_counts()
+        if not counts.empty:
+            print()
+            print(counts.to_string(index=False))
+        print(manifest.check_movement_total(counts))
 
     if args.remote:
         remote = manifest.remote_status(args.bucket, args.prefix)
@@ -142,6 +151,7 @@ def main(argv: list[str] | None = None) -> None:
 
     p = sub.add_parser("status", help="check the expected files against disk (and the bucket)")
     p.add_argument("--remote", action="store_true", help="also list the bucket contents")
+    p.add_argument("--count", action="store_true", help="count rows and check the published total")
     p.add_argument("--bucket", default=None)
     p.add_argument("--prefix", default="")
     p.set_defaults(func=cmd_status)

@@ -44,6 +44,11 @@ RANKING_SIZE_MB = 27
 SUBMITTING_SIZE_MB = 1.1
 TRAINING_YEAR = 2025
 
+# Published total for the 2025 training set, arrivals + departures, across the 10
+# reporting airports. `prc2026 status --count` checks the parquet row counts
+# against it.
+EXPECTED_MOVEMENTS = 4_167_797
+
 
 def training_file(month: int, year: int = TRAINING_YEAR) -> str:
     """`training_2025-01-01_2025-02-01.parquet` style name for a given month."""

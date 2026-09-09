@@ -6,7 +6,10 @@ airports.
 
 - Target: `TAXITIME_SEC_mvt = MVT_TIME_UTC_mvt - BLOCK_TIME_UTC_mvt` for rows with `PHASE_mvt = "DEP"`
 - Metric: RMSE (seconds), best submission per team counts
-- Train: monthly parquet files covering all of 2025 (~4.17M movements, arrivals + departures)
+- Train: monthly parquet files covering all of 2025 — a published 4,167,797 movements
+  (arrivals + departures) at 10 reporting airports: EDDF, EDDM, EGLL, EHAM, LEBL, LEMD,
+  LFPG, LIRF, LTFM, LSZH. Roughly half are departures, so expect ~2.1M labelled targets.
+  `prc2026 status --count` checks the parquet row counts against that figure.
 - Rank: `ranking.parquet` (Jan + Jul 2026) with `BLOCK_TIME_UTC_mvt` and `TAXITIME_SEC_mvt`
   blanked for departures
 - Submit: `submitting.parquet` template (`MVT_ID_mvt`, `TAXITIME_SEC_mvt`), uploaded as
@@ -133,6 +136,11 @@ reported alongside so you can tell whether a change actually bought anything.
 
 ## Notes
 
+- The data page opens by saying **11** airports and then states the 4,167,797 total is
+  across the **10** airports in its Table 1, which does list 10. The code follows the
+  table. If an eleventh airport shows up in the data, `airport` in `AIRPORT_TZ` will miss
+  it and local hour silently falls back to UTC — `prc2026 audit` will surface the unknown
+  code first.
 - The data is real and messy: movement and flight records do not always agree, and the
   organisers deliberately left the inconsistencies in place.
 - Military, Head of State and sensitive movements have been removed.

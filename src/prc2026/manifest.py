@@ -71,6 +71,43 @@ def remote_status(bucket: str | None = None, prefix: str = "") -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def row_counts(phases: bool = True) -> pd.DataFrame:
+    """Row counts per downloaded file, read from parquet metadata (no full load)."""
+    import pyarrow.parquet as pq
+
+    rows = []
+    for name in config.expected_objects():
+        path = config.RAW_DIR / name
+        if not path.exists():
+            continue
+        entry = {"object": name, "rows": pq.ParquetFile(path).metadata.num_rows}
+        if phases and name != config.SUBMITTING_FILE:
+            phase = pq.read_table(path, columns=[config.PHASE])[config.PHASE].to_pylist()
+            entry["dep"] = sum(p == "DEP" for p in phase)
+            entry["arr"] = sum(p == "ARR" for p in phase)
+        rows.append(entry)
+    return pd.DataFrame(rows)
+
+
+def check_movement_total(counts: pd.DataFrame) -> str:
+    """Compare the training row total against the published 4,167,797."""
+    if counts.empty:
+        return "no files downloaded yet, nothing to count"
+    training = counts[counts["object"].str.startswith("training_")]
+    if len(training) < len(config.TRAINING_SIZES_MB):
+        return (
+            f"only {len(training)}/12 training files present "
+            f"({training['rows'].sum():,} movements so far)"
+        )
+    total = int(training["rows"].sum())
+    delta = total - config.EXPECTED_MOVEMENTS
+    verdict = "matches" if delta == 0 else f"differs by {delta:+,} from"
+    return (
+        f"{total:,} movements across 12 files, {verdict} "
+        f"the published {config.EXPECTED_MOVEMENTS:,}"
+    )
+
+
 def describe(status: pd.DataFrame) -> str:
     if "state" in status.columns:
         ok = int(status["state"].eq("ok").sum())
