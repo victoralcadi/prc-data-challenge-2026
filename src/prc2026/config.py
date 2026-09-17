@@ -24,7 +24,7 @@ SUBMISSION_DIR = PROJECT_ROOT / "submissions"
 S3_ENDPOINT = os.getenv("PRC_S3_ENDPOINT", "s3.opensky-network.org")
 ACCESS_KEY = os.getenv("PRC_ACCESS_KEY", "")
 SECRET_KEY = os.getenv("PRC_SECRET_KEY", "")
-DATA_BUCKET = os.getenv("PRC_DATA_BUCKET", "competition-data")
+DATA_BUCKET = os.getenv("PRC_DATA_BUCKET", "prc-2026-datasets")
 SUBMISSION_BUCKET = os.getenv("PRC_SUBMISSION_BUCKET", "")
 TEAM_NAME = os.getenv("PRC_TEAM_NAME", "")
 TEAM_ID = os.getenv("PRC_TEAM_ID", "")
@@ -40,8 +40,11 @@ TRAINING_SIZES_MB = {
     1: 21, 2: 19, 3: 22, 4: 23, 5: 25, 6: 24,
     7: 25, 8: 25, 9: 24, 10: 25, 11: 22, 12: 22,
 }
-RANKING_SIZE_MB = 27
-SUBMITTING_SIZE_MB = 1.1
+# The data page publishes 27M and 1.1M for these two, but the bucket actually holds
+# ~44MB and ~1.7MB, so the ranking set grew after the docs were written. Sizes below
+# are what the bucket serves.
+RANKING_SIZE_MB = 43.6
+SUBMITTING_SIZE_MB = 1.7
 TRAINING_YEAR = 2025
 
 # Published total for the 2025 training set, arrivals + departures, across the 10

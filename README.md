@@ -181,6 +181,13 @@ from tenth, so the fight is over the last few percent.
 `train` prints validation RMSE in seconds. The naive baseline (per airport median) is
 reported alongside so you can tell whether a change actually bought anything.
 
+## Prior work and external data
+
+[`docs/papers-and-data.md`](docs/papers-and-data.md) collects the relevant taxi-time
+literature and the candidate open datasets with their licences. Short version: weather
+observations are the highest-value addition, because the ranking months are January and
+July and January means de-icing at the northern hubs.
+
 ## Prize eligibility obligations
 
 From the [eligibility page](https://prc-data-challenge-2026.netlify.app/eligibility.html),
