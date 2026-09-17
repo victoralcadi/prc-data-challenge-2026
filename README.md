@@ -128,13 +128,18 @@ prc2026 download                         # pull competition data into data/raw/
 prc2026 status --remote                  # expected vs local vs bucket
 ```
 
-Or with the [MinIO client](https://min.io/docs/minio/linux/reference/minio-mc.html):
+Or with the [MinIO client](https://min.io/docs/minio/linux/reference/minio-mc.html), which
+is the route the challenge's data page points to. Same endpoint, same keys:
 
 ```bash
 mc alias set dc26 https://s3.opensky-network.org/ "$PRC_ACCESS_KEY" "$PRC_SECRET_KEY"
-mc ls dc26
-mc cp --recursive dc26/competition-data/ data/raw/
+mc ls dc26                                              # discover the real bucket names
+mc cp --recursive dc26/"$PRC_DATA_BUCKET"/ data/raw/    # fetch the datasets
+mc cp submissions/eager-jungle_v1.parquet dc26/"$PRC_SUBMISSION_BUCKET"/
 ```
+
+`mc ls dc26` is the authoritative answer to what your keys can reach, since the bucket
+holding the data is not named anywhere in the 2026 docs.
 
 ## Workflow
 
