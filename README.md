@@ -71,13 +71,17 @@ cp .env.example .env    # then fill in your team credentials
 
 ### Credentials
 
-Access is **not** self-service. You request team creation on the challenge site, the PRC
-team approves it, you reply to the verification email, and they then send the access keys
-to the datasets/buckets. The data page also shows how to generate access keys on your OSN
-account, so expect to need both an OSN account and an approved team.
+Two stages, and the second one surprises people. First your team creation request has to
+be approved; the provisioning email then gives you a team name and a submission bucket
+named `prc-2026-<team-name>`. That email contains **no access keys**.
 
-Once you have them, put them in `.env` and check with `prc2026 doctor`, which masks the
-keys, names anything still missing, and tries an actual bucket listing:
+You mint the keys yourself in the MinIO console at
+**https://s3-console.opensky-network.org**. Log in via *Other Authentication Methods →
+Login with SSO*, which redirects to OpenSky's Keycloak, and use your OSN account
+credentials. Create an access key there and copy both halves; the secret is shown once.
+
+Put them in `.env` and check with `prc2026 doctor`, which masks the keys, names anything
+still missing, and tries an actual bucket listing:
 
 ```
 PRC_ACCESS_KEY=...
