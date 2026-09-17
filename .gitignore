@@ -27,5 +27,6 @@ dist/
 # editors / os
 .vscode/
 .idea/
+*.code-workspace
 .DS_Store
 Thumbs.db
